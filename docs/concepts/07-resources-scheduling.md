@@ -29,6 +29,8 @@ limit를 무조건 작게 잡으면 안정성이 아니라 throttling과 OOM을 
 
 hard constraint가 많으면 가용 자원이 있어도 Pending이 된다. HA 목적에는 hostname/zone topology spread와 충분한 Node가 함께 필요하다.
 
+topology spread는 Pod가 스케줄되는 순간의 배치를 결정한다. 장애 Node가 돌아와도 이미 실행 중인 Pod를 자동으로 재배치하지 않으므로, 복구 후 쏠림을 확인하고 필요하면 PDB를 지키는 controlled rollout이나 검증된 Descheduler 정책을 사용한다.
+
 ## 확장 계층
 
 ```text

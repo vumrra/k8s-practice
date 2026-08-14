@@ -7,9 +7,9 @@ Pod가 Kubernetes의 최소 배포 단위이며, 삭제한 Pod는 스스로 돌�
 ## 준비
 
 ```bash
-minikube start --driver=docker
-docker build -f build/Dockerfile --build-arg APP=apps/hello-api --build-arg BINARY=hello-api -t k8s-practice/hello-api:dev .
-minikube image load k8s-practice/hello-api:dev
+make minikube-up
+make images
+make load-images ENV=minikube
 kubectl apply -f deploy/base/hello/namespace.yaml
 ```
 
@@ -62,4 +62,3 @@ kubectl get pod -n practice
 ```bash
 kubectl delete -f /tmp/hello-pod.yaml --ignore-not-found
 ```
-

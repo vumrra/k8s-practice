@@ -26,6 +26,11 @@ if grep -R -n -E -- '-l app=' tests/smoke.sh tests/resilience.sh labs deploy/add
   exit 1
 fi
 
+grep -q 'istio-cni istio/cni' deploy/addons/service-mesh/README.md || {
+  echo "service mesh lab must use Istio CNI with restricted Pod Security" >&2
+  exit 1
+}
+
 find README.md docs deploy labs -type f -name '*.md' -exec sh -c '
   for file do
     base=$(dirname "$file")

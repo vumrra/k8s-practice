@@ -34,7 +34,7 @@ PDB가 막으면 `--disable-eviction`으로 우회하지 말고 replicas, unheal
 
 ## 검증
 
-Node Ready, DaemonSet, CSI/CNI, CoreDNS와 실제 gateway 요청을 확인한다. Pod가 여러 Node에 다시 분산됐는지 본다.
+Node Ready, DaemonSet, CSI/CNI, CoreDNS와 실제 gateway 요청을 확인한다. Pod가 여러 Node에 다시 분산됐는지 본다. scheduler는 Node가 복귀해도 실행 중인 Pod를 자동으로 옮기지 않으므로 쏠림이 남으면 PDB와 capacity를 확인한 controlled rollout이나 검증된 Descheduler 정책으로 복구한다.
 
 ## 예방
 

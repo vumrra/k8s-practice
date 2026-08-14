@@ -10,6 +10,7 @@ metadata:
 
 vpc:
   nat:
+    # 실습 비용을 줄인 단일 NAT다. AZ 장애까지 견디려면 비용을 확인하고 HighlyAvailable로 바꾼다.
     gateway: Single
 
 managedNodeGroups:

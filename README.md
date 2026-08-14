@@ -152,7 +152,7 @@ kubectl logs -n NAMESPACE POD_NAME --previous
 kubectl kustomize deploy/overlays/eks
 ```
 
-`clusters/eks/cluster.yaml`은 서울 리전의 private worker 3대, NAT Gateway, control-plane log를 포함한 참고 설정이다. EKS control plane, EC2, NAT Gateway, ALB, EBS, CloudWatch에는 비용이 발생할 수 있다. 저장소 명령은 cluster를 자동 생성하지 않으며 [실습 16](labs/16-eks-migration/README.md)에서 사용자가 검토 후 직접 실행한다.
+`clusters/eks/cluster.yaml`은 서울 리전의 private worker 3대, NAT Gateway, control-plane log를 포함한 참고 설정이다. 비용을 줄이기 위해 단일 NAT를 사용하므로 AZ 단위 egress HA가 필요하면 `HighlyAvailable`로 바꿔야 하며 NAT가 3개로 늘어나는 비용을 확인해야 한다. EKS control plane, EC2, NAT Gateway, ALB, EBS, CloudWatch에는 비용이 발생할 수 있다. 저장소 명령은 cluster를 자동 생성하지 않으며 [실습 16](labs/16-eks-migration/README.md)에서 사용자가 검토 후 직접 실행한다.
 
 ## 온프레미스
 

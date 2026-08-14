@@ -1,4 +1,6 @@
 pilot:
+  cni:
+    enabled: true
   autoscaleEnabled: false
   replicaCount: 1
   resources:
