@@ -25,7 +25,7 @@ kubectl get hpa -n shop -w
 
 ```bash
 kubectl describe hpa -n shop gateway
-kubectl get pods -n shop -l app=gateway -o wide
+kubectl get pods -n shop -l app.kubernetes.io/name=gateway -o wide
 kubectl get deployment -n shop gateway -o jsonpath='{.spec.template.spec.topologySpreadConstraints}'
 ```
 

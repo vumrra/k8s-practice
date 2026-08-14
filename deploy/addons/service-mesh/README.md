@@ -22,7 +22,7 @@ kubectl rollout status deployment -n shop --timeout=180s
 ```bash
 kubectl get pods -n istio-system
 kubectl get pods -n shop
-kubectl get pod -n shop -l app=gateway \
+kubectl get pod -n shop -l app.kubernetes.io/name=gateway \
   -o jsonpath='{.items[0].spec.containers[*].name}'
 ```
 

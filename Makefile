@@ -1,7 +1,12 @@
 GO ?= go
 DOCKER ?= docker
+KIND ?= kind
+MINIKUBE ?= minikube
+ENV ?= kind
+CLUSTER_NAME ?= k8s-practice
+IMAGES := hello-api gateway catalog inventory orders payments
 
-.PHONY: test test-docker images manifests docs-check
+.PHONY: test test-docker images manifests docs-check minikube-up kind-up load-images deploy smoke resilience-kind clean-kind
 
 test:
 	$(GO) test ./...
@@ -23,3 +28,29 @@ manifests:
 docs-check:
 	./tests/docs.sh
 
+minikube-up:
+	$(MINIKUBE) start --profile $(CLUSTER_NAME) --driver=docker --cpus=4 --memory=6144
+
+kind-up:
+	$(KIND) create cluster --name $(CLUSTER_NAME) --config clusters/kind/config.yaml
+
+load-images:
+	@if [ "$(ENV)" = "minikube" ]; then \
+		for image in $(IMAGES); do $(MINIKUBE) image load --profile $(CLUSTER_NAME) k8s-practice/$$image:dev; done; \
+	else \
+		$(KIND) load docker-image --name $(CLUSTER_NAME) $(foreach image,$(IMAGES),k8s-practice/$(image):dev); \
+	fi
+
+deploy:
+	kubectl apply -k deploy/overlays/$(ENV)
+	kubectl wait --for=condition=Available deployment --all -n practice --timeout=180s
+	kubectl wait --for=condition=Available deployment --all -n shop --timeout=180s
+
+smoke:
+	./tests/smoke.sh
+
+resilience-kind:
+	./tests/resilience.sh
+
+clean-kind:
+	$(KIND) delete cluster --name $(CLUSTER_NAME)

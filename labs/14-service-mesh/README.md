@@ -29,7 +29,7 @@ kubectl rollout status deployment -n shop --timeout=180s
 ```bash
 kubectl get peerauthentication -n shop
 kubectl get pods -n shop -o jsonpath='{range .items[*]}{.metadata.name}{"  "}{.spec.containers[*].name}{"\n"}{end}'
-kubectl logs -n shop -l app=gateway -c istio-proxy --tail=20
+kubectl logs -n shop -l app.kubernetes.io/name=gateway -c istio-proxy --tail=20
 ```
 
 프록시 CPU·메모리, 장애 지점, 업그레이드 책임이 늘어난다. 필요한 기능이 mTLS 하나뿐이라면 CNI·플랫폼 기능과 비교한다.

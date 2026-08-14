@@ -19,7 +19,7 @@ kubectl get pods -n shop -o wide
 
 | 상황 | 주입 | 관찰 | 복구 |
 |---|---|---|---|
-| Pod 삭제 | `kubectl delete pod -n shop -l app=gateway` | ReplicaSet 재생성 | rollout 완료 대기 |
+| Pod 삭제 | `kubectl delete pod -n shop -l app.kubernetes.io/name=gateway` | ReplicaSet 재생성 | rollout 완료 대기 |
 | 노드 drain | `kubectl drain k8s-practice-worker --ignore-daemonsets --delete-emptydir-data` | Eviction, PDB, 재스케줄 | `kubectl uncordon k8s-practice-worker` |
 | OOM | memory limit를 낮춘 뒤 부하 | `OOMKilled`, restart | 원래 매니페스트 재적용 |
 | DNS | 잘못된 서비스 이름으로 요청 | `nslookup`, timeout | 서비스 이름 복구 |

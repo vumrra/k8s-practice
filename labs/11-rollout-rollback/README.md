@@ -16,7 +16,7 @@ kubectl rollout status deployment -n shop gateway --timeout=120s
 ```bash
 kubectl set image deployment/gateway -n shop gateway=registry.invalid/gateway:broken
 kubectl rollout status deployment -n shop gateway --timeout=30s || true
-kubectl get pods -n shop -l app=gateway
+kubectl get pods -n shop -l app.kubernetes.io/name=gateway
 kubectl describe deployment -n shop gateway
 ```
 
@@ -24,7 +24,7 @@ kubectl describe deployment -n shop gateway
 
 ```bash
 kubectl rollout history deployment -n shop gateway
-kubectl get rs -n shop -l app=gateway
+kubectl get rs -n shop -l app.kubernetes.io/name=gateway
 kubectl get events -n shop --sort-by=.lastTimestamp
 ```
 

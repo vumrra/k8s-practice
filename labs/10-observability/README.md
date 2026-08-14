@@ -15,7 +15,7 @@ make deploy ENV=kind
 [관측성 애드온](../../deploy/addons/observability/README.md)을 설치한 뒤 gateway Pod를 반복 삭제해 경고 조건을 만든다.
 
 ```bash
-kubectl delete pod -n shop -l app=gateway
+kubectl delete pod -n shop -l app.kubernetes.io/name=gateway
 kubectl rollout status deployment -n shop gateway --timeout=120s
 kubectl get prometheusrule -n monitoring shop-practice -o yaml
 ```

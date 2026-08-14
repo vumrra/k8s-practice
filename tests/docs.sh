@@ -21,6 +21,11 @@ done
 lab_count=$(find labs -mindepth 2 -maxdepth 2 -name README.md 2>/dev/null | wc -l | tr -d ' ')
 test "$lab_count" -eq 16 || { echo "expected 16 labs, found $lab_count" >&2; exit 1; }
 
+if grep -R -n -E -- '-l app=' tests/smoke.sh tests/resilience.sh labs deploy/addons; then
+  echo "use the app.kubernetes.io/name label selector" >&2
+  exit 1
+fi
+
 find README.md docs deploy labs -type f -name '*.md' -exec sh -c '
   for file do
     base=$(dirname "$file")

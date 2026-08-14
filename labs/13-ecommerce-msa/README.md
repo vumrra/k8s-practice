@@ -25,14 +25,14 @@ kubectl port-forward -n shop svc/gateway 18080:8080
 curl --fail http://localhost:18080/api/products
 curl --fail -X POST http://localhost:18080/api/orders \
   -H 'Content-Type: application/json' \
-  -d '{"sku":"pencil","quantity":2,"amount":3000}'
+  -d '{"product_id":"pencil","quantity":2,"amount":3}'
 ```
 
 ## 관찰
 
 ```bash
-kubectl logs -n shop -l app=gateway --tail=20
-kubectl logs -n shop -l app=orders --tail=20
+kubectl logs -n shop -l app.kubernetes.io/name=gateway --tail=20
+kubectl logs -n shop -l app.kubernetes.io/name=orders --tail=20
 kubectl get endpointslice -n shop
 ```
 

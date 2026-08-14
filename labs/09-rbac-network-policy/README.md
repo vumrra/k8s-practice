@@ -27,7 +27,7 @@ kubectl logs -n default outside
 
 ```bash
 kubectl describe networkpolicy -n shop
-kubectl get pod -n shop -l app=gateway \
+kubectl get pod -n shop -l app.kubernetes.io/name=gateway \
   -o jsonpath='{.items[0].spec.automountServiceAccountToken}'
 ```
 
