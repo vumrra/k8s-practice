@@ -13,6 +13,7 @@
 - 애플리케이션: Go 표준 라이브러리 기반 Hello API와 이커머스 MSA
 - 패키징: 애플리케이션은 Kustomize, 외부 애드온은 Helm
 - 자동 검증: Go 테스트, Kustomize 렌더링, kind 배포, HTTP 스모크 테스트
+- 복원력 검증: Kubernetes 기본 명령과 kind 노드 조작을 사용한 장애·복구 실습
 
 프론트엔드, 실제 결제 연동, 완전한 상품·주문 데이터베이스, Terraform 기반 AWS 인프라, 온프레미스 자동 설치, 멀티클라우드 추상화, 커스텀 Kubernetes Operator는 포함하지 않는다. 이들은 Kubernetes 학습 목표에 비해 코드와 운영 부담이 크다.
 
@@ -155,22 +156,31 @@ Client <- Gateway <- Orders
 
 각 lab은 목표, 사전 조건, 실행 명령, 관찰할 상태, 고장 유도, 복구 명령, 정리 명령을 포함한다. 답을 숨기는 별도 starter/solution 복제본은 만들지 않는다.
 
+lab 12는 Pod 삭제, 비자발적 노드 중단, node drain, readiness 실패, OOMKilled, CPU throttling, CoreDNS·서비스 디스커버리 실패, NetworkPolicy 차단, 하위 서비스 timeout·5xx, 잘못된 이미지 rollout, 부족한 클러스터 용량과 PDB로 막힌 drain을 다룬다. 별도 chaos 제품은 설치하지 않고 `kubectl`, `docker`와 NetworkPolicy만 사용한다.
+
 ## 문서 구성
 
 ### 기본 개념
 
 `docs/concepts`는 다음 내용을 독립 문서로 설명한다.
 
+- Kubernetes API, 선언적 desired state, `spec`·`status`와 reconciliation loop
+- object 이름, label, selector, annotation, owner reference와 namespace
 - 클러스터, control plane, worker node, kubelet, container runtime
-- Pod, Deployment, ReplicaSet, DaemonSet, StatefulSet
+- Pod 수명주기, restart policy, init container, sidecar, 종료 유예와 Deployment, ReplicaSet, DaemonSet, StatefulSet
 - Service, EndpointSlice, CoreDNS, Ingress, Gateway API
 - ConfigMap, Secret, 환경 변수와 volume mount
 - Probe, requests, limits, QoS와 OOM
 - Job, CronJob
 - Volume, PV, PVC, StorageClass
-- Scheduler, affinity, taint, toleration, HPA, PDB
-- ServiceAccount, RBAC, Pod Security와 NetworkPolicy
-- 로그, 메트릭, 트레이스와 관측 가능성
+- Scheduler, affinity, taint, toleration, topology spread, PriorityClass, preemption, HPA, PDB
+- ResourceQuota와 LimitRange를 사용한 공유 클러스터 보호
+- ServiceAccount, RBAC, Pod Security Admission, security context, Secret 보호와 NetworkPolicy
+- 로그, 이벤트, 메트릭, 트레이스, audit log, Alertmanager와 관측 가능성
+- 클러스터·노드·워크로드·데이터·의존성 HA, 장애 도메인, quorum, RTO와 RPO
+- 자발적·비자발적 중단, PDB의 보호 범위와 한계
+- 백업, restore rehearsal, 재해 복구와 Git 기반 클러스터 재구축
+- 버전 호환 범위, deprecated API, 인증서, control plane·worker 업그레이드 순서
 - 서비스 메시의 sidecar/ambient 개념, mTLS, retry, timeout, traffic split과 적용 기준
 - Helm, Kustomize와 각각의 사용 범위
 - GitOps와 Argo CD 동기화 모델
@@ -178,8 +188,9 @@ Client <- Gateway <- Orders
 ### 아키텍처와 운영 문서
 
 - `docs/architecture/ecommerce-msa.md`: 서비스 책임, 호출 흐름, 실패 전파
+- `docs/architecture/reliability-model.md`: HA 계층, 장애 도메인, SLI·SLO, RTO·RPO와 용량 여유
 - `docs/architecture/local-eks-comparison.md`: 로컬과 EKS에서 공통인 부분과 달라지는 부분
-- `docs/runbooks`: CrashLoopBackOff, Pending Pod, 통신 실패, rollback, node drain, 백업·복구 점검 순서
+- `docs/runbooks`: CrashLoopBackOff, Pending Pod, OOM·eviction, 통신·DNS 실패, rollout, node drain, 백업·복구, 클러스터 재구축과 업그레이드 점검 순서
 - `docs/onprem/rke2-production-reference.md`: RKE2 HA, API load balancer, CNI, MetalLB, Gateway, 스토리지, 레지스트리, 모니터링과 백업의 참고 구성
 
 온프레미스 문서는 설계 참고 자료이며 서버 프로비저닝 자동화나 설치 스크립트를 포함하지 않는다.
@@ -191,6 +202,7 @@ Client <- Gateway <- Orders
 - Gateway: Traefik과 Kubernetes Gateway API
 - Metrics: Metrics Server
 - Observability: Prometheus와 Grafana
+- Alerting: Alertmanager와 최소 가용성·지연시간·재시작 alert rule
 - GitOps: Argo CD
 - Service mesh: 기본 경로에서 제외된 Istio 선택 실습
 
@@ -212,10 +224,39 @@ Client <- Gateway <- Orders
 - 컨테이너는 non-root 사용자로 실행
 - 가능한 컨테이너는 read-only root filesystem 사용
 - Linux capability를 기본 제거
+- privilege escalation을 금지하고 RuntimeDefault seccomp 적용
 - CPU와 memory requests/limits 지정
-- Secret 값을 Git에 커밋하지 않고 예제 키와 생성 명령만 제공
+- 불변 이미지 tag를 사용하고 `latest` 금지
+- 기본 ServiceAccount token 자동 mount를 비활성화하고 API 접근 workload만 명시적으로 활성화
+- namespace에 Restricted Pod Security Admission 정책 적용
+- Kubernetes Secret의 base64가 암호화가 아님을 명시하고 값을 Git에 커밋하지 않으며 예제 키와 생성 명령만 제공
 - ServiceAccount와 RBAC는 필요한 권한만 부여
 - MSA namespace는 기본 deny NetworkPolicy에서 필요한 통신만 허용
+
+## 고가용성과 재해 복구
+
+HA는 하나의 설정이 아니라 다음 계층을 함께 설계하는 것으로 설명한다.
+
+```text
+클러스터 HA   -> 다중 control plane, etcd quorum, API load balancer
+노드 HA       -> 여러 worker와 node/zone 장애 도메인 분산
+워크로드 HA   -> replicas, probe, topology spread, PDB, graceful shutdown
+데이터 HA     -> 데이터 복제, 일관성, snapshot, backup과 restore
+의존성 HA     -> timeout, 제한된 retry, idempotency와 실패 전파 제어
+재해 복구 DR  -> 클러스터 전체 소실 후 Git과 backup으로 재구축
+```
+
+최종 이커머스 배포는 서비스마다 최소 2 replicas, hostname topology spread, PDB, 명시적인 RollingUpdate, probe와 종료 유예를 사용한다. PDB는 Eviction API를 사용하는 자발적 중단만 제한하며 직접 삭제, rollout과 비자발적 장애를 막지 않는다는 한계를 실습한다. HPA가 늘린 Pod를 장애 후 다시 배치할 수 있도록 노드 용량 여유가 필요하다는 점도 설명한다.
+
+가용성 목표는 예제 SLI와 SLO로 표현한다. 데이터가 메모리에 있는 학습용 MSA에는 영속성 보장을 주장하지 않는다. 문서에서 HA, backup과 DR을 구분하고, 복구 시간 목표인 RTO와 허용 가능한 데이터 손실 범위인 RPO를 정의한다. 멀티 리전 active-active는 비용과 데이터 일관성 설계가 필요한 별도 주제이므로 구현하지 않고 경계만 설명한다.
+
+온프레미스 참고 구성은 etcd snapshot 생성뿐 아니라 별도 위치 보관과 restore rehearsal을 포함한다. EKS는 관리형 control plane이더라도 애플리케이션 리소스, PersistentVolume 데이터, DNS와 외부 의존성의 복구 책임이 남는다고 설명한다.
+
+## 운영과 장애 대응
+
+관측 실습은 트래픽, 오류, 지연시간과 포화도의 네 신호를 사용한다. Alertmanager 경보에는 해당 runbook 경로를 annotation으로 연결한다. 중앙 로그와 분산 trace의 개념 및 선택 기준은 문서화하지만 Loki와 trace backend는 기본 설치하지 않는다.
+
+유지보수 문서는 지원 중인 Kubernetes minor/patch 사용, version skew 확인, deprecated API 검사, 인증서 만료 확인, control plane 우선 업그레이드, worker cordon·drain·업그레이드, 사전 backup과 사후 smoke test 순서를 다룬다.
 
 ## 검증 전략
 
@@ -223,6 +264,7 @@ Client <- Gateway <- Orders
 - `make manifests`: 모든 Kustomize overlay 렌더링 검증
 - `make build`: 모든 Go 바이너리와 컨테이너 이미지 빌드
 - `make smoke-kind`: kind 클러스터 생성, 이미지 로드, 배포, readiness 대기, HTTP 호출 검증
+- `make resilience-kind`: Pod 삭제와 worker 중단 뒤 서비스 복구 및 PDB 동작 검증
 - GitHub Actions: Go 테스트, manifest 렌더링, kind 스모크 테스트 실행
 
 스모크 테스트는 Hello API 응답과 이커머스 상품 조회·주문 흐름을 확인한다. CI 종료 시 생성한 kind 클러스터를 제거한다.
@@ -235,4 +277,8 @@ Client <- Gateway <- Orders
 - kind 기반 CI가 Go 테스트, 렌더링과 핵심 HTTP 흐름을 검증한다.
 - EKS에서 변경해야 하는 이미지, ingress/load balancer, storage와 identity 경계를 문서와 overlay로 확인할 수 있다.
 - Pod부터 서비스 메시까지 핵심 개념 문서가 실습 파일을 직접 가리킨다.
+- 최종 MSA가 replicas, topology spread, PDB, graceful termination과 명시적 rollout 정책을 사용한다.
+- 장애 실습이 자발적 중단, 비자발적 중단, 자원 압박, DNS·네트워크와 잘못된 배포를 구분한다.
+- HA, backup, DR, SLI·SLO, RTO·RPO와 PDB 한계를 독립 문서에서 설명한다.
+- 관측 경보가 runbook으로 연결되고 업그레이드 절차가 backup과 smoke test를 포함한다.
 - 온프레미스 RKE2 구성은 구현 없이 운영 구성요소와 책임을 설명한다.
