@@ -1,0 +1,12 @@
+dex:
+  enabled: false
+
+notifications:
+  enabled: false
+
+server:
+  service:
+    type: ClusterIP
+
+controller:
+  replicas: 1

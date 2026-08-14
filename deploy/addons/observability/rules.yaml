@@ -1,0 +1,32 @@
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: shop-practice
+  namespace: monitoring
+spec:
+  groups:
+    - name: shop.availability
+      rules:
+        - alert: ShopGatewayUnavailable
+          expr: kube_deployment_status_replicas_available{namespace="shop", deployment="gateway"} < 1
+          for: 2m
+          labels:
+            severity: critical
+          annotations:
+            summary: shop gateway has no available replicas
+            runbook_url: docs/runbooks/crashloop-pending.md
+        - alert: ShopPodRestarting
+          expr: increase(kube_pod_container_status_restarts_total{namespace="shop"}[10m]) > 3
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: a shop container is repeatedly restarting
+            runbook_url: docs/runbooks/crashloop-pending.md
+        - alert: ShopContainerOOMKilled
+          expr: increase(kube_pod_container_status_last_terminated_reason{namespace="shop", reason="OOMKilled"}[10m]) > 0
+          labels:
+            severity: warning
+          annotations:
+            summary: a shop container was OOM-killed
+            runbook_url: docs/runbooks/oom-eviction.md

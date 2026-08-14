@@ -1,0 +1,12 @@
+providers:
+  kubernetesGateway:
+    enabled: true
+
+gateway:
+  listeners:
+    web:
+      namespacePolicy:
+        from: All
+
+service:
+  type: NodePort
